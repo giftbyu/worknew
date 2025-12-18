@@ -1,0 +1,38 @@
+name: Secure Sales Forecast Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  run-secure-forecast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y sendmail
+          pip install papermill jupyter ipykernel pandas
+
+      - name: Execute Notebook
+        run: |
+          papermill SalesForecastPipeline.ipynb Output_Report.ipynb
+
+      - name: Notify Failure
+        if: failure()
+        run: |
+          echo "Subject: GAGAL - Pipeline Error" | sendmail -v ${{ secrets.TARGET_EMAIL }}
+
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "Subject: SUKSES - Forecast Ready" | sendmail -v ${{ secrets.TARGET_EMAIL }}
