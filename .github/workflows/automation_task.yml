@@ -1,4 +1,4 @@
-name: Secure Sales Forecast Pipeline
+name: Enterprise Production Pipeline
 
 on:
   push:
@@ -6,33 +6,42 @@ on:
   workflow_dispatch:
 
 jobs:
-  run-secure-forecast:
+  run-production-job:
     runs-on: ubuntu-latest
+    timeout-minutes: 60 
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: Initialize Environment (Python 3.9)
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install Dependencies
+      - name: Install Enterprise Dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y sendmail
           pip install papermill jupyter ipykernel pandas
 
-      - name: Execute Notebook
+      - name: Security Handshake (Secret Check)
         run: |
-          papermill SalesForecastPipeline.ipynb Output_Report.ipynb
+          if [ -z "${{ secrets.TARGET_EMAIL }}" ]; then
+            echo "❌ CRITICAL: Notification Endpoint (Secret) not found."
+            exit 1
+          fi
+          echo "✅ Security Handshake Verified."
 
-      - name: Notify Failure
-        if: failure()
+      - name: Execute Main Pipeline
         run: |
-          echo "Subject: GAGAL - Pipeline Error" | sendmail -v ${{ secrets.TARGET_EMAIL }}
+          papermill SalesForecastPipeline.ipynb Execution_Log.ipynb
 
-      - name: Notify Success
+      - name: Notification Service (Success)
         if: success()
         run: |
-          echo "Subject: SUKSES - Forecast Ready" | sendmail -v ${{ secrets.TARGET_EMAIL }}
+          echo "Subject: [REPORT] Enterprise Pipeline Completed Successfully" | sendmail -v ${{ secrets.TARGET_EMAIL }}
+
+      - name: Notification Service (Failure)
+        if: failure()
+        run: |
+          echo "Subject: [ALERT] Pipeline Execution Failed" | sendmail -v ${{ secrets.TARGET_EMAIL }}
